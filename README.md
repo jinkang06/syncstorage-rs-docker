@@ -32,12 +32,12 @@ Compared with the original warehouse, this warehouse has the following enhanceme
 
 Please follow these steps to deploy your own Firefox Sync server.
 
-### 1. Clone this warehouse
+### Clone this warehouse
 
 ```bash
 git clone https://github.com/jinkang06/syncstorage-rs-docker.git
 cd syncstorage-rs-docker
-
+```
 
 ### Environment Variables
 
