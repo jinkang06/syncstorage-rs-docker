@@ -1,16 +1,24 @@
 services:
   mariadb:
     container_name: firefox_mariadb
-    image: linuxserver/mariadb:10.6.13
+    # 使用官方镜像，版本锁定到 10.6
+    image: mariadb:10.6
+    # 官方镜像的数据存储在由 Docker 管理的卷中，更稳定
     volumes:
-      - ./data/config:/config
-      - ./data/initdb.d/init.sql:/config/initdb.d/init.sql
+      - mariadb_data:/var/lib/mysql
+      # 官方镜像的标准初始化脚本路径
+      - ./data/initdb.d/init.sql:/docker-entrypoint-initdb.d/init.sql
     restart: unless-stopped
     environment:
-      MYSQL_DATABASE: syncstorage
       MYSQL_USER: sync
       MYSQL_PASSWORD: ${MYSQL_PASSWORD}
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+    # 添加 healthcheck，让 syncserver 等到数据库完全就绪后再启动
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   syncserver:
     container_name: firefox_syncserver
@@ -18,13 +26,30 @@ services:
     restart: unless-stopped
     ports:
       - "8000:8000"
+    # 修改 depends_on，利用上面的 healthcheck
     depends_on:
-      - mariadb
+      mariadb:
+        condition: service_healthy
     environment:
-      LOGLEVEL: info
+      # General Settings
+      LOGLEVEL: ${LOGLEVEL}
       SYNC_URL: ${SYNC_URL}
-      SYNC_CAPACITY: 10 # Max number of users that will be accepted
+      SYNC_CAPACITY: ${SYNC_CAPACITY}
       SYNC_MASTER_SECRET: ${SYNC_MASTER_SECRET}
       METRICS_HASH_SECRET: ${METRICS_HASH_SECRET}
-      SYNC_SYNCSTORAGE_DATABASE_URL: mysql://sync:${MYSQL_PASSWORD}@mariadb:3306/syncstorage_rs
-      SYNC_TOKENSERVER_DATABASE_URL: mysql://sync:${MYSQL_PASSWORD}@mariadb:3306/tokenserver_rs
+
+      # Database Connection Details
+      DB_HOST: ${DB_HOST}
+      DB_PORT: ${DB_PORT}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_SYNCSTORAGE_NAME: ${DB_SYNCSTORAGE_NAME}
+      DB_TOKENSERVER_NAME: ${DB_TOKENSERVER_NAME}
+      
+      # Full URLs constructed for the application
+      SYNC_SYNCSTORAGE_DATABASE_URL: mysql://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_SYNCSTORAGE_NAME}
+      SYNC_TOKENSERVER_DATABASE_URL: mysql://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_TOKENSERVER_NAME}
+
+# 定义 mariadb_data 卷
+volumes:
+  mariadb_data:
