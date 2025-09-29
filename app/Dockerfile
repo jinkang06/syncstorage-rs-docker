@@ -1,6 +1,6 @@
 # Stage 1: Builder
 # Use a Rust version new enough for dependencies, based on "bookworm" OS
-FROM rust:1.82-bookworm AS builder
+FROM rust:1.90-bookworm AS builder
 
 ARG GIT_COMMIT=1dc421474df2a4ee973d529534cd0eb7189d58ce
 
